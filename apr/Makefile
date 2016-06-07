@@ -1,13 +1,13 @@
-APR=apr-1.4.6
-APRUTIL=apr-util-1.4.1
+APR=apr-1.5.2
+APRUTIL=apr-util-1.5.4
 
 all:$(APR) $(APRUTIL) buildapr
 
 $(APR):
-	wget http://apache.techartifact.com/mirror//apr/$(APR).tar.gz
+	wget http://apache.parentingamerica.com//apr/$(APR).tar.gz
 	tar -xf $(APR).tar.gz
 $(APRUTIL):
-	wget http://apache.techartifact.com/mirror//apr/$(APRUTIL).tar.gz
+	wget http://apache.parentingamerica.com//apr/$(APRUTIL).tar.gz
 	tar -xf $(APRUTIL).tar.gz
 
 buildapr:
