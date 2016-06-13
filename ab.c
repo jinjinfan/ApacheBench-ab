@@ -1424,6 +1424,9 @@ static void read_connection(struct connection * c)
 #else
         memcpy(c->cbuff + c->cbx, buffer, space);
 #endif              /* NOT_ASCII */
+        printf("buffer: [%s]\n", buffer);
+        printf("c->cbuff: [%s]\n", c->cbuff);
+        printf("c->cbuff+c->cbx: [%s]\n", c->cbuff+c->cbx);
         c->cbx += tocopy;
         space -= tocopy;
         c->cbuff[c->cbx] = 0;   /* terminate for benefit of strstr */
