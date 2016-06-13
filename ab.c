@@ -1523,8 +1523,8 @@ static void read_connection(struct connection * c)
             }
             
             printf("enable_validation: %d\n", enable_validation);
-            printf("c->cbuff: [%s]\n", c->cbuff);
-            if(enable_validation && strstr(c->cbuff, "err"))
+            printf("c->cbuff+c->cbx: [%s]\n", c->cbuff+c->cbx);
+            if(enable_validation && strstr(c->cbuff+c->cbx, "err"))
             {
               obix_error++;
             }
