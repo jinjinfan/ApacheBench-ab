@@ -1518,6 +1518,9 @@ static void read_connection(struct connection * c)
                     c->length = 0; 
                 }
             }
+            
+            printf("enable_validation: %d\n", enable_validation);
+            printf("c->cbuff: [%s]\n", c->cbuff);
             if(enable_validation && strstr(c->cbuff, "err"))
             {
               obix_error++;
@@ -2211,7 +2214,8 @@ int main(int argc, const char * const argv[])
                 copyright();
                 return 0;
             case 'E':
-                 enable_validation = 1;   
+                 enable_validation = 1; 
+                 break;  
 #ifdef USE_SSL
             case 'Z':
                 ssl_cipher = strdup(optarg);
