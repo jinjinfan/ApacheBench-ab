@@ -1424,9 +1424,6 @@ static void read_connection(struct connection * c)
 #else
         memcpy(c->cbuff + c->cbx, buffer, space);
 #endif              /* NOT_ASCII */
-        printf("buffer: [%s]\n", buffer);
-        printf("c->cbuff: [%s]\n", c->cbuff);
-        printf("c->cbuff+c->cbx: [%s]\n", c->cbuff+c->cbx);
         if(enable_validation && strstr(c->cbuff+c->cbx, "err"))
         {
           obix_error++;
