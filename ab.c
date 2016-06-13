@@ -344,7 +344,8 @@ int err_conn = 0;          /* requests failed due to connection drop */
 int err_recv = 0;          /* requests failed due to broken read */
 int err_except = 0;        /* requests failed due to exception */
 int err_response = 0;      /* requests with invalid or non-200 response */
-
+int enable_validation=0; /* not enable checking http return value */
+int obix_error = 0;
 #ifdef USE_SSL
 int is_ssl;
 SSL_CTX *ssl_ctx;
@@ -802,6 +803,10 @@ static void output_results(int sig)
         printf("   (Connect: %d, Receive: %d, Length: %d, Exceptions: %d)\n",
             err_conn, err_recv, err_length, err_except);
     printf("Write errors:           %d\n", epipe);
+    if( obix_error)
+    {
+      printf("Failed obix requests:        %d\n", obix_error);
+    }
     if (err_response)
         printf("Non-2xx responses:      %d\n", err_response);
     if (keepalive)
@@ -1513,6 +1518,10 @@ static void read_connection(struct connection * c)
                     c->length = 0; 
                 }
             }
+            if(enable_validation && strstr(c->cbuff, "err"))
+            {
+              obix_error++;
+            }
             c->bread += c->cbx - (s + l - c->cbuff) + r - tocopy;
             totalbread += c->bread;
         }
@@ -1881,6 +1890,7 @@ static void usage(const char *progname)
     fprintf(stderr, "    -Z ciphersuite  Specify SSL/TLS cipher suite (See openssl ciphers)\n");
     fprintf(stderr, "    -f protocol     Specify SSL/TLS protocol (SSL2, SSL3, TLS1, or ALL)\n");
 #endif
+    fprintf(stderr, "    -E Enable validation of returned http response\n");
     exit(EINVAL);
 }
 
@@ -2045,7 +2055,7 @@ int main(int argc, const char * const argv[])
 #endif
 
     apr_getopt_init(&opt, cntxt, argc, argv);
-    while ((status = apr_getopt(opt, "n:c:t:b:T:p:v:rkVhwix:y:z:C:H:P:A:g:X:de:Sq"
+    while ((status = apr_getopt(opt, "n:c:t:b:T:p:v:rkVhwix:y:z:C:H:P:A:g:X:de:Sq:E"
 #ifdef USE_SSL
             "Z:f:"
 #endif
@@ -2200,6 +2210,8 @@ int main(int argc, const char * const argv[])
             case 'V':
                 copyright();
                 return 0;
+            case 'E':
+                 enable_validation = 1;   
 #ifdef USE_SSL
             case 'Z':
                 ssl_cipher = strdup(optarg);
@@ -2216,6 +2228,7 @@ int main(int argc, const char * const argv[])
                 }
                 break;
 #endif
+
         }
     }
 
