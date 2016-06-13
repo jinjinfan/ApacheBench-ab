@@ -802,11 +802,8 @@ static void output_results(int sig)
     if (bad)
         printf("   (Connect: %d, Receive: %d, Length: %d, Exceptions: %d)\n",
             err_conn, err_recv, err_length, err_except);
-    printf("Write errors:           %d\n", epipe);
-    if( obix_error)
-    {
-      printf("Failed obix requests:        %d\n", obix_error);
-    }
+    printf("Write errors:           %d\n", epipe); 
+    printf("Failed obix requests:        %d\n", obix_error);
     if (err_response)
         printf("Non-2xx responses:      %d\n", err_response);
     if (keepalive)
