@@ -1427,16 +1427,16 @@ static void read_connection(struct connection * c)
         printf("buffer: [%s]\n", buffer);
         printf("c->cbuff: [%s]\n", c->cbuff);
         printf("c->cbuff+c->cbx: [%s]\n", c->cbuff+c->cbx);
+        if(enable_validation && strstr(c->cbuff+c->cbx, "err"))
+        {
+          obix_error++;
+        }          
         c->cbx += tocopy;
         space -= tocopy;
         c->cbuff[c->cbx] = 0;   /* terminate for benefit of strstr */
         if (verbosity >= 2) {
             printf("LOG: header received:\n%s\n", c->cbuff);
-        }
-        if(enable_validation && strstr(c->cbuff+c->cbx, "err"))
-        {
-          obix_error++;
-        }        
+        }      
         s = strstr(c->cbuff, "\r\n\r\n");
         /*
          * this next line is so that we talk to NCSA 1.5 which blatantly
