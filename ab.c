@@ -1424,6 +1424,8 @@ static void read_connection(struct connection * c)
         if(enable_validation && strstr(c->cbuff+c->cbx, "err"))
         {
           obix_error++;
+          if (verbosity >= 2)
+            printf("http response containing error: \n%s\n", buffer);
         }          
         c->cbx += tocopy;
         space -= tocopy;
