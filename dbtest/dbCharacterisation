@@ -1,0 +1,354 @@
+#!/bin/bash
+if [ $# -ne 5 ]; then
+    echo "Not enough arguments supplied"
+    echo "1. A valid hostname"
+    echo "2. Repertory to save the result file"
+    echo "3. Maximum number of requests"
+    echo "4. Maximum number of concurrency for concurrency test"
+    echo "5. Fixed number of total requests for read-write order test"
+    exit 1
+fi
+
+http_address="$1"
+Savefolder="$2"
+max_num="$3"
+max_con_num="$4"
+Readwritenum="$5"
+file_abresult="$Savefolder/ab_result"
+
+Requstnumbertest()
+{
+    count=10
+    output_file="$1"
+    connerr_file="$2"
+    obixerr_file="$3"
+    post_file="$4"
+    concurrency="$5"
+    mean_file="$6"
+    min_file="$7"
+    load_file="$8"
+    mem_file="$9"
+    echo -e "# reqnum ttime" >>$output_file
+    echo -e "# reqnum httperrmum" >>$connerr_file
+    echo -e "# reqnum obixerrmum">>$obixerr_file 
+    echo -e "# reqnum meantime">>$mean_file 
+    echo -e "# connum mintime median maxtime">>$min_file 
+    echo -e "# connum cpu_1 cpu_5 cpu_15">>$load_file
+    echo -e "# connum mem">>$mem_file   
+    while [ $count -lt $max_num ]; do
+        ab -s 6000 -l -j err -r -p $post_file -n $count -c $concurrency $http_address > $file_abresult
+        request_failed=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+        obix_failed=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+        ttime=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+        mean=$(grep "Time per request" $file_abresult | awk 'NR==1 {print $4}')
+        if [[ $concurrency -gt 1 ]]; then
+            mean2=$(grep "Time per request" $file_abresult | awk 'NR==2 {print $4}')
+        fi
+        min=$(grep "Total:" $file_abresult | awk '{print $2}')
+        median=$(grep "Total:" $file_abresult | awk '{print $5}')
+        max=$(grep "Total:" $file_abresult | awk '{print $6}') 
+        echo -e "$count $ttime" >>$output_file
+        echo -e "$count $request_failed" >>$connerr_file
+        echo -e "$count $obix_failed" >>$obixerr_file
+        echo -e "$count $mean $mean2" >>$mean_file
+        echo -e "$count $mean $mean2" >>$mean_file
+        echo -e "$count $min $median $max" >>$min_file
+
+        top -b -n 1 > $file_abresult
+        load1=$(grep "load average:" $file_abresult | awk '{print $12}')
+        load2=$(grep "load average:" $file_abresult | awk '{print $13}')
+        load3=$(grep "load average:" $file_abresult | awk '{print $14}')
+        echo -e "$count $load1 $load2 $load3" >>$load_file
+
+        mem=$(grep "Mem:" $file_abresult | awk '{print $6}')
+        echo -e "$count $mem" >>$mem_file
+
+        if [ $count -lt 100 ];then
+            let count=count+10
+        else
+            let count=count+$count/10
+        fi
+    done
+}
+
+Concurrencytest()
+{
+    output_file="$1"
+    connerr_file="$2"
+    obixerr_file="$3"
+    post_file="$4"
+    count="$5"
+    concurrency=1
+    mean_file="$6"
+    min_file="$7"
+    load_file="$8"
+    mem_file="$9"    
+    echo -e "# connum ttime" >>$output_file
+    echo -e "# connum httperrmum" >>$connerr_file
+    echo -e "# connum obixerrmum">>$obixerr_file 
+    echo -e "# connum meantime">>$mean_file 
+    echo -e "# connum mintime median maxtime">>$min_file 
+    echo -e "# connum cpu_1 cpu_5 cpu_15">>$load_file
+    echo -e "# connum mem">>$mem_file         
+    while [ $concurrency -lt 40 ]; do
+        ab -s 6000 -l -j err -r -p $post_file -n $count -c $concurrency $http_address > $file_abresult
+        request_failed=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+        obix_failed=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+        ttime=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+
+        mean=$(grep "Time per request" $file_abresult | awk 'NR==1 {print $4}')
+        if [[ $concurrency -gt 1 ]]; then
+            mean2=$(grep "Time per request" $file_abresult | awk 'NR==2 {print $4}')
+        fi
+        min=$(grep "Total:" $file_abresult | awk '{print $2}')
+        median=$(grep "Total:" $file_abresult | awk '{print $5}')
+        max=$(grep "Total:" $file_abresult | awk '{print $6}')
+        echo -e "$concurrency $ttime" >>$output_file
+        echo -e "$concurrency $request_failed" >>$connerr_file
+        echo -e "$concurrency $obix_failed" >>$obixerr_file
+        echo -e "$concurrency $mean $mean2" >>$mean_file
+        echo -e "$concurrency $min $median $max" >>$min_file
+        #load average
+        top -b -n 1 > $file_abresult
+        load1=$(grep "load average:" $file_abresult | awk '{print $12}')
+        load2=$(grep "load average:" $file_abresult | awk '{print $13}')
+        load3=$(grep "load average:" $file_abresult | awk '{print $14}')
+        echo -e "$concurrency $load1 $load2 $load3" >>$load_file
+
+        mem=$(grep "Mem:" $file_abresult | awk '{print $6}')
+        echo -e "$concurrency $mem" >>$mem_file
+        if [ $concurrency -lt 41 ];then
+            let concurrency=concurrency+1
+        elif [ $concurrency -lt 100 ];then
+            let concurrency=concurrency+10
+        else
+            let concurrency=concurrency+$concurrency/10
+        fi
+    done
+}
+
+ReadWriteTotalNumbertest()
+{
+    arr[0]="72"
+    arr[1]="82"
+    index=0
+    readNum=1
+    writeNum=1
+    output_file="$1"
+    connerr_file="$2"
+    obixerr_file="$3"
+    postread_file="$4"
+    postwrite_file="$5"
+    order="$6"   
+    echo -e "# readnum writenum ttime" >>$output_file
+    echo -e "# readnum writenum httperrmum" >>$connerr_file
+    echo -e "# readnum writenum obixerrmum">>$obixerr_file
+    if [[ $max_num -lt 200 ]]; then
+        loop_exit=$((max_num/2))
+    else
+        loop_exit=100
+    fi
+    while [ $readNum -lt $loop_exit ]; do
+        writeNum=1
+        while [ $writeNum -lt $loop_exit ]; do
+            rm -f $postwrite_file
+            value=${arr[$index]}
+            if [[ $value == "72" ]]; then
+                echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="72" /></uri></list>' > $postwrite_file
+            elif [[ $value == "82" ]]; then
+                echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="82" /></uri></list>' > $postwrite_file
+            fi
+            totalTtime=0
+            totalObixFail=0
+            totalFail=0
+            index=($index+1)%2
+            if [[ $order == "read" ]]; then
+                ab -s 6000 -l -j err -r -p $postread_file -n $readNum -c 1 $http_address > $file_abresult
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+                ab -s 6000 -l -j err -r -p $postwrite_file -n $writeNum -c 1 $http_address > $file_abresult 
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+            elif [[ $order == "write" ]]; then
+                ab -s 6000 -l -j err -r -p $postwrite_file -n $writeNum -c 1 $http_address > $file_abresult 
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+                ab -s 6000 -l -j err -r -p $postread_file -n $readNum -c 1 $http_address > $file_abresult
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+            fi    
+
+            echo -e "$readNum $writeNum $totalTtime" >>$output_file
+            echo -e "$readNum $writeNum $totalFail" >>$connerr_file
+            echo -e "$readNum $writeNum $totalObixFail" >>$obixerr_file
+
+            if [ $writeNum -lt 100 ];then
+                let writeNum=writeNum+10
+            else
+                let writeNum=writeNum+$writeNum/10
+            fi
+        done
+        if [ $readNum -lt 100 ];then
+            let readNum=readNum+10
+        else
+            let readNum=readNum+$readNum/10
+        fi
+    done
+}
+
+ReadWriteordertest()
+{
+    arr[0]="72"
+    arr[1]="82"
+    output_file="$1"
+    connerr_file="$2"
+    obixerr_file="$3"
+    postread_file="$4"
+    postwrite_file="$5"
+    value_index=0
+    choices=("read" "write")
+    command_arr=()
+    echo -e "# reqnum reqscore ttime" >>$output_file
+    echo -e "# reqnum reqscore httperrmum" >>$connerr_file
+    echo -e "# reqnum reqscore obixerrmum">>$obixerr_file
+    while [ ${#command_arr[@]} -lt 2 ]; do
+        index=$(( $RANDOM % 2 ))
+        command_arr+=(${choices[$index]})
+    done
+    while [ ${#command_arr[@]} -le $((Readwritenum-1)) ]; do
+        index=$(( $RANDOM % 2 ))
+        command_arr+=(${choices[$index]})
+        length=${#command_arr[@]}      
+        loop_exit=$((length-1))
+        totalnum=0
+        totalscore=0
+        totalTtime=0
+        totalObixFail=0
+        totalFail=0   
+        for i in `seq 0 $loop_exit`; do
+            command=${command_arr[$i]}
+            if [[ $command == "read" ]]; then
+                if [[ $i == $loop_exit ]]; then
+                    readNum=$((Readwritenum-totalnum))
+                else
+                    readNum=$(( $Readwritenum / length ))
+                fi
+                ab -s 6000 -l -j err -r -p $postread_file -n $readNum -c 1 $http_address > $file_abresult
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+                totalscore=$((totalscore+readNum))
+
+                totalnum=$((totalnum+readNum))
+                
+            elif [[ $command == "write" ]]; then
+                rm -f $postwrite_file
+                value=${arr[$value_index]}
+                if [[ $value == "72" ]]; then
+                    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="72" /></uri></list>' > $postwrite_file
+                elif [[ $value == "82" ]]; then
+                    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="82" /></uri></list>' > $postwrite_file
+                fi
+                value_index=($value_index+1)%2
+                if [[ $i == $loop_exit ]]; then
+                    writeNum=$((Readwritenum-totalnum))
+                else
+                    writeNum=$(( $Readwritenum / length))
+                fi
+                ab -s 6000 -l -j err -r -p $postwrite_file -n $writeNum -c 1 $http_address > $file_abresult 
+                Failed_tmp=$(grep "Failed requests" $file_abresult | awk '{print $3}')
+                Obixfailed_tmp=$(grep "Matched HTTP response" $file_abresult | awk '{print $4}')
+                Ttime_tmp=$(grep "Time taken for tests" $file_abresult | awk '{print $5}')
+                totalTtime=$(echo $totalTtime + $Ttime_tmp |bc)
+                totalObixFail=$((totalObixFail+Obixfailed_tmp))
+                totalFail=$((totalFail+Failed_tmp))
+                totalscore=$((totalscore+3*writeNum))
+                totalnum=$((totalnum+writeNum))
+            fi
+        done
+        echo -e "$totalnum $totalscore $totalTtime" >>$output_file
+        echo -e "$totalnum $totalscore $totalFail" >>$connerr_file
+        echo -e "$totalnum $totalscore $totalObixFail" >>$obixerr_file
+    done
+}
+
+read_requestnumber()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Read" val="/obix/network/ME/DEV100/AV25/Present_Value/"></uri></list>' > "$Savefolder/obix_read.xml"
+    Requstnumbertest "$Savefolder/Reqread.dat" "$Savefolder/Reqread_connerr.dat" "$Savefolder/Reqread_connerr_obix.dat" "$Savefolder/obix_read.xml" 1 "$Savefolder/Reqread_mean.dat" "$Savefolder/Reqread_time.dat" "$Savefolder/Reqread_cpu.dat" "$Savefolder/Reqread_mem.dat"
+    sleep 10
+    Requstnumbertest "$Savefolder/Reqread10.dat" "$Savefolder/Reqread10_connerr.dat" "$Savefolder/Reqread10_connerr_obix.dat" "$Savefolder/obix_read.xml" 10 "$Savefolder/Reqread10_mean.dat" "$Savefolder/Reqread10_time.dat" "$Savefolder/Reqread10_cpu.dat" "$Savefolder/Reqread10_mem.dat"
+}
+
+write_requestnumber()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="82" /></uri></list>' > "$Savefolder/obix_write.xml"
+    Requstnumbertest "$Savefolder/Reqwrite.dat" "$Savefolder/Reqwrite_connerr.dat" "$Savefolder/Reqwrite_connerr_obix.dat" "$Savefolder/obix_write.xml" 1 "$Savefolder/Reqwrite_mean.dat" "$Savefolder/Reqwrite_time.dat" "$Savefolder/Reqwrite_cpu.dat" "$Savefolder/Reqwrite_mem.dat"
+    sleep 10
+    Requstnumbertest "$Savefolder/Reqwrite10.dat" "$Savefolder/Reqwrite10_connerr.dat" "$Savefolder/Reqwrite10_connerr_obix.dat" "$Savefolder/obix_write.xml" 10 "$Savefolder/Reqwrite10_mean.dat" "$Savefolder/Reqwrite10_time.dat" "$Savefolder/Reqwrite10_cpu.dat" "$Savefolder/Reqwrite10_mem.dat"
+}
+
+read_concurrency()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Read" val="/obix/network/ME/DEV100/AV25/Present_Value/"></uri></list>' > "$Savefolder/obix_read.xml"
+    Concurrencytest "$Savefolder/Ccread.dat" "$Savefolder/Ccread_connerr.dat" "$Savefolder/Ccread_connerr_obix.dat" "$Savefolder/obix_read.xml" $max_con_num "$Savefolder/Ccread_mean.dat" "$Savefolder/Ccread_time.dat" "$Savefolder/Ccread_cpu.dat" "$Savefolder/Ccread_mem.dat"
+}
+
+write_concurrency()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Write" val="/obix/network/ME/DEV100/AV25/Present_Value/"><real val="82" /></uri></list>' > "$Savefolder/obix_write.xml"
+    Concurrencytest "$Savefolder/Ccwrite.dat" "$Savefolder/Ccwrite_connerr.dat" "$Savefolder/Ccwrite_connerr_obix.dat" "$Savefolder/obix_write.xml" $max_con_num "$Savefolder/Ccwrite_mean.dat" "$Savefolder/Ccwrite_time.dat" "$Savefolder/Ccwrite_cpu.dat" "$Savefolder/Ccwrite_mem.dat"
+}
+
+readwrite_combination_totalnumber()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Read" val="/obix/network/ME/DEV100/AV25/Present_Value/"></uri></list>' > "$Savefolder/obix_read.xml"
+    ReadWriteTotalNumbertest "$Savefolder/CombiNumber_read.dat" "$Savefolder/CombiNumber_read_connerr.dat" "$Savefolder/CombiNumber_read_connerr_obix.dat" "$Savefolder/obix_read.xml" "$Savefolder/obix_write.xml" "read" "$Savefolder/CombiNumber_read_mean.dat" "$Savefolder/CombiNumber_read_time.dat" "$Savefolder/CombiNumber_read_cpu.dat" "$Savefolder/CombiNumber_read_mem.dat"
+    sleep 100
+    ReadWriteTotalNumbertest "$Savefolder/CombiNumber_write.dat" "$Savefolder/CombiNumber_write_connerr.dat" "$Savefolder/CombiNumber_write_connerr_obix.dat" "$Savefolder/obix_read.xml" "$Savefolder/obix_write.xml" "write" "$Savefolder/CombiNumber_write_mean.dat" "$Savefolder/CombiNumber_write_time.dat" "$Savefolder/CombiNumber_write_cpu.dat" "$Savefolder/CombiNumber_write_mem.dat"
+}
+readwrite_combination_order()
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?><list is="obix:BatchIn"><uri is="obix:Read" val="/obix/network/ME/DEV100/AV25/Present_Value/"></uri></list>' > "$Savefolder/obix_read.xml"
+    ReadWriteordertest "$Savefolder/CombiOrder.dat" "$Savefolder/CombiOrder_connerr.dat" "$Savefolder/CombiOrder_connerr_obix.dat" "$Savefolder/obix_read.xml" "$Savefolder/obix_write.xml" "$Savefolder/CombiOrder_mean.dat" "$Savefolder/CombiOrder_time.dat" "$Savefolder/CombiOrder_cpu.dat" "$Savefolder/CombiOrder_mem.dat" 
+}
+
+
+#clean up
+rm -rf $Savefolder
+mkdir -p $Savefolder
+# modify open file limitation to support maximum concurrency
+ulimit -n 20000
+
+
+read_concurrency
+sleep 5m
+write_concurrency
+# sleep 3m
+# read_requestnumber
+# sleep 3m
+# write_requestnumber
+
+# sleep 3m
+# readwrite_combination_order
+# sleep 3m
+# readwrite_combination_totalnumber

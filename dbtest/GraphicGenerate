@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# check device ip
+if [ $# -eq 0 ]; then
+    device_add="10.50.76.20"
+else
+    device_add="$1"
+fi
+
+mkdir -p sources
+mkdir -p results
+# clean up
+rm -f sources/*.png
+# copy dat files from device
+sshpass -p root scp -r root@$device_add:/home/root/dbtest/*.dat sources/
+
+# generate apache benchmark with variable number of requests
+gnuplot Request_totaltime_failed.p
+gnuplot Request_time_cpu_mem_con1.p
+gnuplot Request_time_cpu_mem_con10.p
+# generate apache benchmark with variable number of concurrency
+gnuplot Concurrency_totaltime_failed.p
+gnuplot Concurrency.p
+# generate apache benchmark with variable number of read and write requests
+# gnuplot readwritenumbermultiplot.p
+# # generate apache benchmark with random order of read and write requests
+# gnuplot readwriteordermultiplot.p
+# gnome-open Concurrency_timecost.png &
+# gnome-open Request_timecost.png &
+# gnome-open Readwrite_number.png &
+# gnome-open Readwrite_order.png &
